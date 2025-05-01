@@ -73,16 +73,28 @@ const Account = () => {
   );
 };
 
-const ProductCard = ({ product }) => (
-  <div className="col">
-    <Card className="h-100">
-      <Card.Img variant="top" src="https://via.placeholder.com/300x200" />
-      <Card.Body>
-        <Card.Title>{product.title}</Card.Title>
-        <Card.Text>{product.description}</Card.Text>
-      </Card.Body>
-    </Card>
-  </div>
-);
+const ProductCard = ({ product }) => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="col">
+      <Card 
+        className="h-100 cursor-pointer"
+        onClick={() => navigate(`/products/${product.id}`)}
+        style={{ cursor: 'pointer' }}
+      >
+        <Card.Img variant="top" src="https://via.placeholder.com/300x200" />
+        <Card.Body>
+          <Card.Title>{product.title}</Card.Title>
+          <Card.Text className="text-truncate">{product.description}</Card.Text>
+          <div className="d-flex justify-content-between align-items-center">
+            <span className="badge bg-primary">{product.category}</span>
+            <span className="text-muted">{product.cur_bid} руб.</span>
+          </div>
+        </Card.Body>
+      </Card>
+    </div>
+  );
+};
 
 export default Account;

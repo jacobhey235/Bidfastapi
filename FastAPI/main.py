@@ -131,9 +131,23 @@ async def get_user_favorites(db: db_dependency, user: user_dependency):
     ).filter(models.favorites.c.user_id == user.get('id')).all()
     return products
 
+
 @app.get("/users/me/products", response_model=List[ProductModel])
 async def get_user_products(db: db_dependency, user: user_dependency):
     products = db.query(models.Product).filter(
         models.Product.owner_id == user.get('id')
     ).all()
     return products
+
+
+@app.get("/products/{product_id}/favorite-status")
+async def check_favorite_status(
+    product_id: int,
+    db: db_dependency,
+    user: user_dependency
+):
+    is_favorite = db.query(models.favorites).filter(
+        models.favorites.c.user_id == user.get('id'),
+        models.favorites.c.product_id == product_id
+    ).first() is not None
+    return {"is_favorite": is_favorite}

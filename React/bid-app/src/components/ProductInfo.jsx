@@ -72,17 +72,18 @@ const ProductInfo = () => {
   const [isFavorite, setIsFavorite] = useState(false);
 
   // Проверяем статус избранного при загрузке
-  useEffect(() => {
-    const checkFavoriteStatus = async () => {
-      if (isAuthenticated) {
-        try {
-          const response = await api.get(`/products/${id}/favorite-status`);
-          setIsFavorite(response.data);
-        } catch (err) {
-          console.error('Error checking favorite status:', err);
-        }
+  const checkFavoriteStatus = async () => {
+    if (isAuthenticated) {
+      try {
+        const response = await api.get(`/products/${id}/favorite-status`);
+        setIsFavorite(response.data.is_favorite); // Обратите внимание на response.data.is_favorite
+      } catch (err) {
+        console.error('Error checking favorite status:', err);
       }
-    };
+    }
+  };
+  
+  useEffect(() => {
     checkFavoriteStatus();
   }, [id, isAuthenticated]);
 
