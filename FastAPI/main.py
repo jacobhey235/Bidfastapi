@@ -78,3 +78,62 @@ async def read_product(product_id: int, db: db_dependency):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
+
+
+# Добавим после существующих эндпоинтов
+
+@app.post("/products/{product_id}/favorite", status_code=status.HTTP_201_CREATED)
+async def add_to_favorites(
+    product_id: int,
+    db: db_dependency,
+    user: user_dependency
+):
+    # Проверяем существование товара
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Проверяем, не добавлен ли уже в избранное
+    if db.query(models.favorites).filter(
+        models.favorites.c.user_id == user.get('id'),
+        models.favorites.c.product_id == product_id
+    ).first():
+        raise HTTPException(status_code=400, detail="Product already in favorites")
+
+    # Добавляем в избранное
+    db.execute(models.favorites.insert().values(
+        user_id=user.get('id'),
+        product_id=product_id
+    ))
+    db.commit()
+    return {"message": "Product added to favorites"}
+
+@app.delete("/products/{product_id}/favorite", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_from_favorites(
+    product_id: int,
+    db: db_dependency,
+    user: user_dependency
+):
+    result = db.execute(models.favorites.delete().where(
+        models.favorites.c.user_id == user.get('id'),
+        models.favorites.c.product_id == product_id
+    ))
+    db.commit()
+
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Favorite not found")
+
+@app.get("/users/me/favorites", response_model=List[ProductModel])
+async def get_user_favorites(db: db_dependency, user: user_dependency):
+    products = db.query(models.Product).join(
+        models.favorites,
+        models.Product.id == models.favorites.c.product_id
+    ).filter(models.favorites.c.user_id == user.get('id')).all()
+    return products
+
+@app.get("/users/me/products", response_model=List[ProductModel])
+async def get_user_products(db: db_dependency, user: user_dependency):
+    products = db.query(models.Product).filter(
+        models.Product.owner_id == user.get('id')
+    ).all()
+    return products

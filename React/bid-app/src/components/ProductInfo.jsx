@@ -7,7 +7,7 @@ import { ArrowLeft } from 'react-bootstrap-icons';
 const ProductInfo = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); 
+  const location = useLocation();
   const [product, setProduct] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -63,18 +63,41 @@ const ProductInfo = () => {
     console.log('Делаем ставку на товар', product.id);
   };
 
-  const handleFavorite = () => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-    // Логика для добавления в избранное
-    console.log('Добавляем в избранное товар', product.id);
-  };
-
   const handleLoginRedirect = () => {
     // Сохраняем текущий путь перед переходом на страницу входа
     navigate('/login', { state: { from: location.pathname } });
+  };
+
+  // Добавим состояние для избранного
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  // Проверяем статус избранного при загрузке
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (isAuthenticated) {
+        try {
+          const response = await api.get(`/products/${id}/favorite-status`);
+          setIsFavorite(response.data);
+        } catch (err) {
+          console.error('Error checking favorite status:', err);
+        }
+      }
+    };
+    checkFavoriteStatus();
+  }, [id, isAuthenticated]);
+
+  // Обработчик для избранного
+  const handleFavorite = async () => {
+    try {
+      if (isFavorite) {
+        await api.delete(`/products/${id}/favorite`);
+      } else {
+        await api.post(`/products/${id}/favorite`);
+      }
+      setIsFavorite(!isFavorite);
+    } catch (err) {
+      console.error('Error updating favorite:', err);
+    }
   };
 
   if (!product) {
@@ -89,8 +112,8 @@ const ProductInfo = () => {
 
   return (
     <Container className="py-4">
-      <Button 
-        variant="outline-secondary" 
+      <Button
+        variant="outline-secondary"
         onClick={() => navigate(-1)}
         className="mb-4"
       >
@@ -168,8 +191,11 @@ const ProductInfo = () => {
                       <Button variant="primary" size="lg" onClick={handleBid}>
                         Сделать ставку
                       </Button>
-                      <Button variant="outline-secondary" onClick={handleFavorite}>
-                        Добавить в избранное
+                      <Button
+                        variant={isFavorite ? "danger" : "outline-secondary"}
+                        onClick={handleFavorite}
+                      >
+                        {isFavorite ? "Удалить из избранного" : "В избранное"}
                       </Button>
                     </>
                   ) : (

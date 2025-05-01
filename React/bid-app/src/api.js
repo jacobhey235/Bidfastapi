@@ -33,4 +33,18 @@ api.interceptors.response.use(
   }
 );
 
+const checkFavoriteStatus = (productId) => api.get(`/products/${productId}/favorite-status`);
+const addFavorite = (productId) => api.post(`/products/${productId}/favorite`);
+const removeFavorite = (productId) => api.delete(`/products/${productId}/favorite`);
+const getFavorites = () => api.get('/users/me/favorites');
+const getUserProducts = () => api.get('/users/me/products');
+
+export {
+  checkFavoriteStatus,
+  addFavorite,
+  removeFavorite,
+  getFavorites,
+  getUserProducts
+};
+
 export default api;
