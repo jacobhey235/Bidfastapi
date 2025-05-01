@@ -1,0 +1,21 @@
+### Python ###
+.venv/
+venv/
+.env
+__pycache__/
+*.pyc
+
+### Node ###
+React/bid-app/node_modules/
+React/bid-app/build/
+React/bid-app/.env
+React/bid-app/coverage/
+
+### IDE ###
+.vscode/
+.idea/
+*.swp
+*.swo
+
+### System ###
+.DS_Store
