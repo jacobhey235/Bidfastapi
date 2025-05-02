@@ -30,6 +30,8 @@ class CreateUserRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user_id: int  # Добавляем новые поля
+    username: str
 
 
 def get_db():
@@ -87,7 +89,12 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
         )
     access_token = create_access_token(user.username, user.id,
                                        timedelta(minutes=20))
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user_id": user.id,  # Добавляем ID пользователя в ответ
+        "username": user.username
+    }
 
 
 def create_access_token(username: str, user_id: int, expires_delta: timedelta):

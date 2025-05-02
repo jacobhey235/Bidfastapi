@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../api';
-import { Button, Container, Row, Col, Card, Carousel } from 'react-bootstrap';
+import { Button, Container, Row, Col, Card, Carousel, Spinner } from 'react-bootstrap';
 import { ArrowLeft } from 'react-bootstrap-icons';
 
 const ProductInfo = () => {
@@ -11,8 +11,11 @@ const ProductInfo = () => {
   const [product, setProduct] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const userId = localStorage.getItem('user_id');
+  const isOwner = product?.owner_id === parseInt(userId);
 
-  // Проверка авторизации при загрузке компонента
   useEffect(() => {
     const token = localStorage.getItem('token');
     setIsAuthenticated(!!token);
@@ -37,18 +40,32 @@ const ProductInfo = () => {
     return `${day}.${month}.${year} ${hours}:${minutes}`;
   };
 
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const response = await api.get(`/products/${id}/`);
-        setProduct(response.data);
-      } catch (error) {
-        console.error('Error fetching product:', error);
-      }
-    };
+  const fetchProduct = async () => {
+    try {
+      const response = await api.get(`/products/${id}/`);
+      setProduct(response.data);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      setIsLoading(false);
+    }
+  };
 
+  const checkFavoriteStatus = async () => {
+    if (isAuthenticated) {
+      try {
+        const response = await api.get(`/products/${id}/favorite-status`);
+        setIsFavorite(response.data.is_favorite);
+      } catch (err) {
+        console.error('Error checking favorite status:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
     fetchProduct();
-  }, [id]);
+    checkFavoriteStatus();
+  }, [id, isAuthenticated]);
 
   const handleSelect = (selectedIndex) => {
     setActiveIndex(selectedIndex);
@@ -59,35 +76,13 @@ const ProductInfo = () => {
       navigate('/login');
       return;
     }
-    // Логика для ставки
     console.log('Делаем ставку на товар', product.id);
   };
 
   const handleLoginRedirect = () => {
-    // Сохраняем текущий путь перед переходом на страницу входа
     navigate('/login', { state: { from: location.pathname } });
   };
 
-  // Добавим состояние для избранного
-  const [isFavorite, setIsFavorite] = useState(false);
-
-  // Проверяем статус избранного при загрузке
-  const checkFavoriteStatus = async () => {
-    if (isAuthenticated) {
-      try {
-        const response = await api.get(`/products/${id}/favorite-status`);
-        setIsFavorite(response.data.is_favorite); // Обратите внимание на response.data.is_favorite
-      } catch (err) {
-        console.error('Error checking favorite status:', err);
-      }
-    }
-  };
-  
-  useEffect(() => {
-    checkFavoriteStatus();
-  }, [id, isAuthenticated]);
-
-  // Обработчик для избранного
   const handleFavorite = async () => {
     try {
       if (isFavorite) {
@@ -101,12 +96,31 @@ const ProductInfo = () => {
     }
   };
 
+  const handleCloseAuction = async () => {
+    try {
+      await api.patch(`/products/${id}/close`);
+      fetchProduct();
+    } catch (err) {
+      console.error('Error closing auction:', err);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Загрузка...</span>
+        </Spinner>
+      </Container>
+    );
+  }
+
   if (!product) {
     return (
       <Container className="py-5 text-center">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Загрузка...</span>
-        </div>
+        <Card>
+          <Card.Body>Товар не найден</Card.Body>
+        </Card>
       </Container>
     );
   }
@@ -118,12 +132,11 @@ const ProductInfo = () => {
         onClick={() => navigate(-1)}
         className="mb-4"
       >
-        <ArrowLeft className="me-2" /> Назад к списку
+        <ArrowLeft className="me-2" /> Назад
       </Button>
 
       <Card className="shadow-sm">
         <Row className="g-0">
-          {/* Галерея изображений */}
           <Col md={6} className="p-3">
             <Carousel activeIndex={activeIndex} onSelect={handleSelect} variant="dark">
               {productImages.map((img, index) => (
@@ -153,7 +166,6 @@ const ProductInfo = () => {
             </div>
           </Col>
 
-          {/* Информация о товаре */}
           <Col md={6}>
             <Card.Body className="h-100 d-flex flex-column p-4">
               <div className="mb-4">
@@ -188,17 +200,28 @@ const ProductInfo = () => {
 
                 <div className="d-grid gap-2">
                   {isAuthenticated ? (
-                    <>
-                      <Button variant="primary" size="lg" onClick={handleBid}>
-                        Сделать ставку
-                      </Button>
+                    isOwner ? (
                       <Button
-                        variant={isFavorite ? "danger" : "outline-secondary"}
-                        onClick={handleFavorite}
+                        variant="danger"
+                        size="lg"
+                        onClick={handleCloseAuction}
+                        disabled={!product.is_active}
                       >
-                        {isFavorite ? "Удалить из избранного" : "В избранное"}
+                        {product.is_active ? "Закрыть торги" : "Торги закрыты"}
                       </Button>
-                    </>
+                    ) : (
+                      <>
+                        <Button variant="primary" size="lg" onClick={handleBid}>
+                          Сделать ставку
+                        </Button>
+                        <Button
+                          variant={isFavorite ? "danger" : "outline-secondary"}
+                          onClick={handleFavorite}
+                        >
+                          {isFavorite ? "Удалить из избранного" : "В избранное"}
+                        </Button>
+                      </>
+                    )
                   ) : (
                     <Button variant="primary" size="lg" onClick={handleLoginRedirect}>
                       Войдите, чтобы сделать ставку

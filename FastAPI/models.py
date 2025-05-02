@@ -20,6 +20,7 @@ class Product(Base):
     bid_date = Column(DateTime)
     cur_bid = Column(Float)
     owner_id = Column(Integer, ForeignKey('users.id'))
+    is_active = Column(Boolean, default=True)
 
     owner = relationship("User", back_populates="products")
     favorited_by = relationship("User", secondary=favorites, back_populates="favorites")

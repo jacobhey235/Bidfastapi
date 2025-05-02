@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tab, Tabs, Card, Spinner, Button, Container } from 'react-bootstrap';
 import api from '../api';
+import AddProduct from './AddProduct';
 
 const Account = () => {
   const [activeTab, setActiveTab] = useState('favorites');
   const [favorites, setFavorites] = useState([]);
   const [myProducts, setMyProducts] = useState([]);
   const [loading, setLoading] = useState({ favorites: true, products: true });
-  const navigate = useNavigate();
+  const [showAddProduct, setShowAddProduct] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,9 +29,21 @@ const Account = () => {
     fetchData();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
+  const handleAddProductSuccess = () => {
+    setShowAddProduct(false);
+    api.get('/users/me/products').then(response => {
+      setMyProducts(response.data);
+    });
+  };
+
+  const handleCloseAuction = async (productId) => {
+    try {
+      await api.patch(`/products/${productId}/close`);
+      const products = await api.get('/users/me/products');
+      setMyProducts(products.data);
+    } catch (err) {
+      console.error('Error closing auction:', err);
+    }
   };
 
   return (
@@ -54,6 +67,21 @@ const Account = () => {
           )}
         </Tab>
         <Tab eventKey="products" title="Мои товары">
+          <Button 
+            variant="success" 
+            className="mb-3"
+            onClick={() => setShowAddProduct(true)}
+          >
+            Добавить товар
+          </Button>
+          
+          {showAddProduct && (
+            <AddProduct 
+              onSuccess={handleAddProductSuccess}
+              onCancel={() => setShowAddProduct(false)}
+            />
+          )}
+
           {loading.products ? (
             <Spinner animation="border" />
           ) : myProducts.length === 0 ? (
@@ -63,7 +91,12 @@ const Account = () => {
           ) : (
             <div className="row row-cols-1 row-cols-md-3 g-4">
               {myProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard 
+                  key={product.id} 
+                  product={product} 
+                  isOwner={true}
+                  onCloseAuction={() => handleCloseAuction(product.id)}
+                />
               ))}
             </div>
           )}
@@ -73,7 +106,7 @@ const Account = () => {
   );
 };
 
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, isOwner, onCloseAuction }) => {
   const navigate = useNavigate();
 
   return (
@@ -91,6 +124,13 @@ const ProductCard = ({ product }) => {
             <span className="badge bg-primary">{product.category}</span>
             <span className="text-muted">{product.cur_bid} руб.</span>
           </div>
+          {isOwner && (
+            <div className="mt-2">
+              <span className={`badge ${product.is_active ? 'bg-success' : 'bg-secondary'}`}>
+                {product.is_active ? 'Активные торги' : 'Торги закрыты'}
+              </span>
+            </div>
+          )}
         </Card.Body>
       </Card>
     </div>

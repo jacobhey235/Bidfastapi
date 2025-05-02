@@ -36,19 +36,18 @@ const Login = ({ onLogin }) => {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
-        // Отключаем перехватчик, который может делать redirect
         __isRetry: true
       });
       
       localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('username', formData.username); // Сохраняем имя пользователя
-      onLogin(formData.username); // Передаем имя пользователя в onLogin
+      localStorage.setItem('user_id', response.data.user_id);  // Сохраняем ID
+      localStorage.setItem('username', response.data.username);
       
-      // Редирект на предыдущую страницу или на главную
+      onLogin(response.data.username, response.data.user_id);  // Обновляем onLogin
+      
       const from = location.state?.from || '/';
       navigate(from, { replace: true });
     } catch (err) {
-      // Обрабатываем ошибку без перезагрузки страницы
       setErrors({
         ...errors,
         login: err.response?.data?.detail || 'Неверное имя пользователя или пароль'

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react"
-import api from '../api'
+import React, { useState } from "react";
+import { Button, Form } from 'react-bootstrap';
+import api from '../api';
 
-const AddProduct = () => {
-    const [products, setProducts] = useState([]);
+const AddProduct = ({ onSuccess, onCancel }) => {
     const [formData, setFormData] = useState({
         title: '',
         category: '',
@@ -11,14 +11,6 @@ const AddProduct = () => {
         cur_bid: 0.0
     });
 
-    const fetchProducts = async () => {
-        const response = await api.get('/products/');
-        setProducts(response.data);
-    }
-
-    useEffect(() => {
-        fetchProducts();
-    }, [])
     const handleInputChange = (event) => {
         setFormData({
             ...formData,
@@ -26,72 +18,99 @@ const AddProduct = () => {
         });
     };
 
-    const handleFormSubmit = async (event) => {
-        event.preventDefault();
-        await api.post('/products/', formData);
-        fetchProducts();
-        setFormData({
-            title: '',
-            category: '',
-            description: '',
-            bid_date: '',
-            cur_bid: 0.0
-        });
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post('/products/', {
+                ...formData,
+                bid_date: new Date(formData.bid_date).toISOString()
+            });
+            onSuccess();
+        } catch (error) {
+            console.error('Error adding product:', error);
+        }
     };
 
     const getMinDate = () => {
         const now = new Date();
         const tomorrow = new Date(now);
-        tomorrow.setDate(now.getDate() + 2);
-        tomorrow.setHours(0, 0, 0, 0);
+        tomorrow.setDate(now.getDate() + 1);
         return tomorrow.toISOString().slice(0, 16);
-      };
+    };
 
     return (
-        <div>
-            <form onSubmit={handleFormSubmit}>
-                <div className='mb-3 mt-3'>
-                    <label htmlFor='title' className='form-label'>
-                        Название товара
-                    </label>
-                    <input type='text' className='form-control' id='title' name='title' onChange={handleInputChange} value={formData.title} />
+        <div className="border p-4 rounded mb-4">
+            <Form onSubmit={handleSubmit}>
+                <Form.Group className="mb-3">
+                    <Form.Label>Название товара</Form.Label>
+                    <Form.Control 
+                        type="text" 
+                        name="title" 
+                        value={formData.title} 
+                        onChange={handleInputChange} 
+                        required 
+                    />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                    <Form.Label>Категория</Form.Label>
+                    <Form.Control 
+                        type="text" 
+                        name="category" 
+                        value={formData.category} 
+                        onChange={handleInputChange} 
+                        required 
+                    />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                    <Form.Label>Описание</Form.Label>
+                    <Form.Control 
+                        as="textarea" 
+                        rows={3} 
+                        name="description" 
+                        value={formData.description} 
+                        onChange={handleInputChange} 
+                        required 
+                    />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                    <Form.Label>Дата и время окончания торгов</Form.Label>
+                    <Form.Control 
+                        type="datetime-local" 
+                        name="bid_date" 
+                        min={getMinDate()} 
+                        value={formData.bid_date} 
+                        onChange={handleInputChange} 
+                        required 
+                    />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                    <Form.Label>Минимальная ставка в рублях</Form.Label>
+                    <Form.Control 
+                        type="number" 
+                        name="cur_bid" 
+                        step="0.01" 
+                        min="0" 
+                        value={formData.cur_bid} 
+                        onChange={handleInputChange} 
+                        required 
+                    />
+                </Form.Group>
+
+                <div className="d-flex justify-content-end gap-2">
+                    <Button variant="secondary" onClick={onCancel}>
+                        Отмена
+                    </Button>
+                    <Button variant="primary" type="submit">
+                        Добавить товар
+                    </Button>
                 </div>
-
-                <div className='mb-3'>
-                    <label htmlFor='category' className='form-label'>
-                        Категория
-                    </label>
-                    <input type='text' className='form-control' id='category' name='category' onChange={handleInputChange} value={formData.category} />
-                </div>
-
-                <div className='mb-3'>
-                    <label htmlFor='description' className='form-label'>
-                        Описание
-                    </label>
-                    <input type='text' className='form-control' id='description' name='description' onChange={handleInputChange} value={formData.description} />
-                </div>
-
-                <div className='mb-3'>
-                    <label htmlFor='bid_date' className='form-label'>
-                        Дата и время окончания торгов
-                    </label>
-                    <input type='datetime-local' className='form-control' id='bid_date' name='bid_date' min={getMinDate()} onChange={handleInputChange} value={formData.bid_date} />
-                </div>
-
-                <div className='mb-3'>
-                    <label htmlFor='cur_bid' className='form-label'>
-                        Минимальная ставка в рублях
-                    </label>
-                    <input type='number' className='form-control' id='cur_bid' name='cur_bid' step='any' onChange={handleInputChange} value={formData.cur_bid} />
-                </div>
-
-                <button type='submit' className='btn btn-primary'>
-                    Submit
-                </button>
-
-            </form>
+            </Form>
         </div>
-    )
-}
+    );
+};
 
 export default AddProduct;
