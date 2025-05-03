@@ -30,7 +30,7 @@ class CreateUserRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-    user_id: int  # Добавляем новые поля
+    user_id: int
     username: str
 
 
@@ -92,7 +92,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     return {
         "access_token": access_token, 
         "token_type": "bearer",
-        "user_id": user.id,  # Добавляем ID пользователя в ответ
+        "user_id": user.id,
         "username": user.username
     }
 

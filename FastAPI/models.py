@@ -9,7 +9,6 @@ favorites = Table(
     Column('product_id', Integer, ForeignKey('products.id', ondelete="CASCADE"), primary_key=True)
 )
 
-
 class Product(Base):
     __tablename__ = 'products'
 
@@ -21,10 +20,16 @@ class Product(Base):
     cur_bid = Column(Float)
     owner_id = Column(Integer, ForeignKey('users.id'))
     is_active = Column(Boolean, default=True)
+    max_bid_user_id = Column(Integer, ForeignKey('users.id'))
 
-    owner = relationship("User", back_populates="products")
-    favorited_by = relationship("User", secondary=favorites, back_populates="favorites")
-
+    # Явно указываем foreign_keys для отношений
+    owner = relationship("User", foreign_keys=[owner_id], back_populates="products")
+    max_bid_user = relationship("User", foreign_keys=[max_bid_user_id])
+    favorited_by = relationship(
+        "User", 
+        secondary=favorites, 
+        back_populates="favorites"
+    )
 
 class User(Base):
     __tablename__ = 'users'
@@ -33,5 +38,13 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
 
-    products = relationship("Product", back_populates="owner")
-    favorites = relationship("Product", secondary=favorites, back_populates="favorited_by")
+    products = relationship(
+        "Product", 
+        foreign_keys="Product.owner_id",
+        back_populates="owner"
+    )
+    favorites = relationship(
+        "Product",
+        secondary=favorites,
+        back_populates="favorited_by"
+    )

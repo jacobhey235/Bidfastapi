@@ -26,7 +26,6 @@ app.add_middleware(
 
 models.Base.metadata.create_all(bind=engine)
 
-
 class ProductBase(BaseModel):
     title: str
     category: str
@@ -34,15 +33,17 @@ class ProductBase(BaseModel):
     bid_date: datetime
     cur_bid: float
 
-
 class ProductModel(ProductBase):
     id: int
     owner_id: int
     is_active: bool
+    max_bid_user_id: int | None
 
     class Config:
         from_attributes = True
 
+class BidRequest(BaseModel):
+    amount: float
 
 def get_db():
     db = SessionLocal()
@@ -51,31 +52,22 @@ def get_db():
     finally:
         db.close()
 
-
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-
-@app.post("/products/", response_model=ProductModel, status_code=status.HTTP_201_CREATED)
-async def create_product(
-    product: ProductBase,
-    db: db_dependency,
-    user: user_dependency
-):
-    if product.bid_date < datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="Bid date must be in the future")
-
-    db_product = models.Product(**product.dict(), owner_id=user.get('id'), is_active=True)
+@app.post("/products/", response_model=ProductModel)
+async def create_product(product: ProductBase, db: db_dependency, user: user_dependency):
+    db_product = models.Product(**product.dict(), owner_id=user.get('id'))
     db.add(db_product)
     db.commit()
     db.refresh(db_product)
     return db_product
 
-
 @app.get("/products/", response_model=List[ProductModel])
 async def read_products(db: db_dependency, skip: int = 0, limit: int = 100):
-    return db.query(models.Product).offset(skip).limit(limit).all()
-
+    return db.query(models.Product).filter(
+        models.Product.is_active == True
+    ).offset(skip).limit(limit).all()
 
 @app.get("/products/{product_id}", response_model=ProductModel)
 async def read_product(product_id: int, db: db_dependency):
@@ -84,6 +76,30 @@ async def read_product(product_id: int, db: db_dependency):
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
+@app.post("/products/{product_id}/bid")
+async def make_bid(
+    product_id: int, 
+    bid: BidRequest,
+    db: db_dependency,
+    user: user_dependency
+):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if not product.is_active:
+        raise HTTPException(status_code=400, detail="Auction is closed")
+    if bid.amount <= product.cur_bid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Bid must be greater than current bid ({product.cur_bid})"
+        )
+    if product.owner_id == user.get('id'):
+        raise HTTPException(status_code=400, detail="Cannot bid on your own product")
+    
+    product.cur_bid = bid.amount
+    product.max_bid_user_id = user.get('id')
+    db.commit()
+    return {"message": "Bid placed successfully"}
 
 
 @app.post("/products/{product_id}/favorite", status_code=status.HTTP_201_CREATED)
