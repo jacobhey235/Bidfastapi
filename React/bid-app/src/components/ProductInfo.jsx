@@ -20,6 +20,7 @@ const ProductInfo = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [product, setProduct] = useState(null);
+  const [images, setImages] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -29,42 +30,34 @@ const ProductInfo = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const productImages = [
-    'https://via.placeholder.com/800x600?text=Product+Image+1',
-    'https://via.placeholder.com/800x600?text=Product+Image+2',
-    'https://via.placeholder.com/800x600?text=Product+Package',
-  ];
-
   useEffect(() => {
     const token = localStorage.getItem('token');
     setIsAuthenticated(!!token);
     setCurrentUserId(parseInt(localStorage.getItem('user_id')));
-    fetchProduct();
-    checkFavoriteStatus();
-  }, [id]);
-
-  const fetchProduct = async () => {
-    setIsLoading(true);
-    try {
-      const response = await api.get(`/products/${id}`);
-      setProduct(response.data);
-    } catch (error) {
-      console.error('Error fetching product:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const checkFavoriteStatus = async () => {
-    if (isAuthenticated) {
+    
+    const fetchData = async () => {
       try {
-        const response = await api.get(`/products/${id}/favorite-status`);
-        setIsFavorite(response.data.is_favorite);
-      } catch (err) {
-        console.error('Error checking favorite status:', err);
+        const [productResponse, imagesResponse] = await Promise.all([
+          api.get(`/products/${id}`),
+          api.get(`/products/${id}/images`)
+        ]);
+        
+        setProduct(productResponse.data);
+        setImages(imagesResponse.data);
+        
+        if (isAuthenticated) {
+          const favoriteResponse = await api.get(`/products/${id}/favorite-status`);
+          setIsFavorite(favoriteResponse.data.is_favorite);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
-  };
+    };
+
+    fetchData();
+  }, [id, isAuthenticated]);
 
   const handleFavorite = async () => {
     try {
@@ -88,13 +81,14 @@ const ProductInfo = () => {
   const handleBidSubmit = async () => {
     try {
       const amount = parseFloat(bidAmount);
-      if (isNaN(amount) || amount <= 0) {
-        setBidError('Ставка должна быть положительным числом');
+      if (isNaN(amount) || amount <= product.cur_bid) {
+        setBidError(`Ставка должна быть больше ${product.cur_bid.toFixed(2)}`);
         return;
       }
       
       await api.post(`/products/${id}/bid`, { amount });
-      await fetchProduct();
+      const updatedProduct = await api.get(`/products/${id}`);
+      setProduct(updatedProduct.data);
       setIsBidding(false);
     } catch (err) {
       setBidError(err.response?.data?.detail || 'Ошибка при размещении ставки');
@@ -157,21 +151,29 @@ const ProductInfo = () => {
         <Row className="g-0">
           <Col md={6} className="p-3">
             <Carousel activeIndex={activeIndex} onSelect={setActiveIndex}>
-              {productImages.map((img, index) => (
-                <Carousel.Item key={index}>
-                  <div className="ratio ratio-4x3">
-                    <img
-                      className="d-block w-100 img-fluid rounded"
-                      src={img}
-                      alt={`Изображение товара ${index + 1}`}
-                      style={{ objectFit: 'cover' }}
-                    />
+              {images.length > 0 ? (
+                images.map((img, index) => (
+                  <Carousel.Item key={index}>
+                    <div className="ratio ratio-4x3">
+                      <img
+                        className="d-block w-100 img-fluid rounded"
+                        src={`data:image/jpeg;base64,${img}`}
+                        alt={`Изображение товара ${index + 1}`}
+                        style={{ objectFit: 'cover' }}
+                      />
+                    </div>
+                  </Carousel.Item>
+                ))
+              ) : (
+                <Carousel.Item>
+                  <div className="ratio ratio-4x3 bg-light d-flex align-items-center justify-content-center">
+                    <span className="text-muted">Нет изображений</span>
                   </div>
                 </Carousel.Item>
-              ))}
+              )}
             </Carousel>
             <div className="d-flex justify-content-center mt-3">
-              {productImages.map((_, index) => (
+              {images.map((_, index) => (
                 <Button
                   key={index}
                   variant={activeIndex === index ? 'primary' : 'outline-secondary'}
@@ -230,7 +232,10 @@ const ProductInfo = () => {
                       <Button 
                         variant="danger" 
                         size="lg" 
-                        onClick={() => api.patch(`/products/${id}/close`).then(fetchProduct)}
+                        onClick={() => api.patch(`/products/${id}/close`).then(() => {
+                          const updatedProduct = {...product, is_active: false};
+                          setProduct(updatedProduct);
+                        })}
                         disabled={!product.is_active}
                       >
                         {product.is_active ? 'Закрыть торги' : 'Торги закрыты'}

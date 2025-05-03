@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Form } from 'react-bootstrap';
+import { Button, Form, Alert } from 'react-bootstrap';
 import api from '../api';
 
 const AddProduct = ({ onSuccess, onCancel }) => {
@@ -10,6 +10,8 @@ const AddProduct = ({ onSuccess, onCancel }) => {
         bid_date: '',
         cur_bid: 0.0
     });
+    const [files, setFiles] = useState([]);
+    const [error, setError] = useState('');
 
     const handleInputChange = (event) => {
         setFormData({
@@ -18,16 +20,34 @@ const AddProduct = ({ onSuccess, onCancel }) => {
         });
     };
 
+    const handleFileChange = (e) => {
+        setFiles(Array.from(e.target.files));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+        
         try {
-            await api.post('/products/', {
-                ...formData,
-                bid_date: new Date(formData.bid_date).toISOString()
+            const formDataToSend = new FormData();
+            formDataToSend.append('title', formData.title);
+            formDataToSend.append('category', formData.category);
+            formDataToSend.append('description', formData.description);
+            formDataToSend.append('bid_date', formData.bid_date);
+            formDataToSend.append('cur_bid', formData.cur_bid);
+            
+            files.forEach(file => {
+                formDataToSend.append('files', file);
+            });
+
+            await api.post('/products/', formDataToSend, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
             });
             onSuccess();
-        } catch (error) {
-            console.error('Error adding product:', error);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Ошибка при добавлении товара');
         }
     };
 
@@ -40,6 +60,8 @@ const AddProduct = ({ onSuccess, onCancel }) => {
 
     return (
         <div className="border p-4 rounded mb-4">
+            {error && <Alert variant="danger">{error}</Alert>}
+            
             <Form onSubmit={handleSubmit}>
                 <Form.Group className="mb-3">
                     <Form.Label>Название товара</Form.Label>
@@ -73,6 +95,18 @@ const AddProduct = ({ onSuccess, onCancel }) => {
                         onChange={handleInputChange} 
                         required 
                     />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                    <Form.Label>Изображения товара (макс. 2MB)</Form.Label>
+                    <Form.Control 
+                        type="file" 
+                        multiple 
+                        accept="image/jpeg, image/png"
+                        onChange={handleFileChange}
+                        required
+                    />
+                    <Form.Text muted>Первое изображение будет основным</Form.Text>
                 </Form.Group>
 
                 <Form.Group className="mb-3">
