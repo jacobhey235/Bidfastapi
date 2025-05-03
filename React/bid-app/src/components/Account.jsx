@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tab, Tabs, Card, Spinner, Button, Container } from 'react-bootstrap';
+import { Tab, Tabs, Card, Spinner, Button, Container, Badge } from 'react-bootstrap';
 import api from '../api';
 import AddProduct from './AddProduct';
 
@@ -8,21 +8,38 @@ const Account = () => {
   const [activeTab, setActiveTab] = useState('favorites');
   const [favorites, setFavorites] = useState([]);
   const [myProducts, setMyProducts] = useState([]);
-  const [loading, setLoading] = useState({ favorites: true, products: true });
+  const [wonProducts, setWonProducts] = useState([]);
+  const [loading, setLoading] = useState({ 
+    favorites: true, 
+    products: true,
+    won: true
+  });
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
+    const userId = localStorage.getItem('user_id');
+    setCurrentUserId(parseInt(userId));
+    
     const fetchData = async () => {
       try {
-        const favs = await api.get('/users/me/favorites');
+        const [favs, products, won] = await Promise.all([
+          api.get('/users/me/favorites'),
+          api.get('/users/me/products'),
+          api.get('/products/').then(res => 
+            res.data.filter(p => 
+              !p.is_active && p.max_bid_user_id === parseInt(userId)
+            )
+          )
+        ]);
+        
         setFavorites(favs.data);
-
-        const products = await api.get('/users/me/products');
         setMyProducts(products.data);
+        setWonProducts(won);
       } catch (err) {
         console.error('Error fetching account data:', err);
       } finally {
-        setLoading({ favorites: false, products: false });
+        setLoading({ favorites: false, products: false, won: false });
       }
     };
 
@@ -39,8 +56,16 @@ const Account = () => {
   const handleCloseAuction = async (productId) => {
     try {
       await api.patch(`/products/${productId}/close`);
-      const products = await api.get('/users/me/products');
+      const [products, won] = await Promise.all([
+        api.get('/users/me/products'),
+        api.get('/products/').then(res => 
+          res.data.filter(p => 
+            !p.is_active && p.max_bid_user_id === currentUserId
+          )
+        )
+      ]);
       setMyProducts(products.data);
+      setWonProducts(won);
     } catch (err) {
       console.error('Error closing auction:', err);
     }
@@ -66,6 +91,7 @@ const Account = () => {
             </div>
           )}
         </Tab>
+        
         <Tab eventKey="products" title="Мои товары">
           <Button 
             variant="success" 
@@ -101,12 +127,32 @@ const Account = () => {
             </div>
           )}
         </Tab>
+        
+        <Tab eventKey="won" title="Мои выигрыши">
+          {loading.won ? (
+            <Spinner animation="border" />
+          ) : wonProducts.length === 0 ? (
+            <Card>
+              <Card.Body>У вас нет выигранных товаров</Card.Body>
+            </Card>
+          ) : (
+            <div className="row row-cols-1 row-cols-md-3 g-4">
+              {wonProducts.map(product => (
+                <ProductCard 
+                  key={product.id} 
+                  product={product} 
+                  isWon={true}
+                />
+              ))}
+            </div>
+          )}
+        </Tab>
       </Tabs>
     </Container>
   );
 };
 
-const ProductCard = ({ product, isOwner, onCloseAuction }) => {
+const ProductCard = ({ product, isOwner, isWon, onCloseAuction }) => {
   const navigate = useNavigate();
 
   return (
@@ -122,15 +168,14 @@ const ProductCard = ({ product, isOwner, onCloseAuction }) => {
           <Card.Text className="text-truncate">{product.description}</Card.Text>
           <div className="d-flex justify-content-between align-items-center">
             <span className="badge bg-primary">{product.category}</span>
-            <span className="text-muted">{product.cur_bid} руб.</span>
+            <span className="text-muted">{product.cur_bid.toFixed(2)} руб.</span>
           </div>
-          {isOwner && (
-            <div className="mt-2">
-              <span className={`badge ${product.is_active ? 'bg-success' : 'bg-secondary'}`}>
-                {product.is_active ? 'Активные торги' : 'Торги закрыты'}
-              </span>
-            </div>
-          )}
+          <div className="mt-2">
+            <Badge bg={product.is_active ? 'success' : 'secondary'}>
+              {product.is_active ? 'Активные торги' : 'Торги закрыты'}
+            </Badge>
+            {isWon && <Badge bg="warning" className="ms-2">Вы выиграли</Badge>}
+          </div>
         </Card.Body>
       </Card>
     </div>

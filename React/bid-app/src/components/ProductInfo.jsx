@@ -107,6 +107,10 @@ const ProductInfo = () => {
     setBidError('');
   };
 
+  const handlePayClick = () => {
+    alert('Оплата товара будет реализована позже');
+  };
+
   const handleLoginRedirect = () => {
     navigate('/login', { state: { from: location.pathname } });
   };
@@ -136,6 +140,7 @@ const ProductInfo = () => {
   }
 
   const isOwner = product.owner_id === currentUserId;
+  const isWinner = !product.is_active && product.max_bid_user_id === currentUserId;
   const minBid = product.cur_bid + 0.01;
 
   return (
@@ -196,7 +201,11 @@ const ProductInfo = () => {
                     </h4>
                     {product.max_bid_user_id && (
                       <p className="text-muted small mb-2">
-                        Текущий лидер: Пользователь #{product.max_bid_user_id}
+                        {isWinner ? (
+                          <Badge bg="success">Вы выиграли этот товар!</Badge>
+                        ) : (
+                          `Текущий лидер: Пользователь #${product.max_bid_user_id}`
+                        )}
                       </p>
                     )}
                     <div className="d-flex justify-content-between align-items-center">
@@ -225,6 +234,10 @@ const ProductInfo = () => {
                         disabled={!product.is_active}
                       >
                         {product.is_active ? 'Закрыть торги' : 'Торги закрыты'}
+                      </Button>
+                    ) : isWinner ? (
+                      <Button variant="success" size="lg" onClick={handlePayClick}>
+                        Оплатить
                       </Button>
                     ) : product.is_active ? (
                       isBidding ? (
