@@ -193,3 +193,12 @@ async def close_auction(
     product.is_active = False
     db.commit()
     return {"message": "Auction closed successfully"}
+
+
+@app.get("/users/me/won", response_model=List[ProductModel])
+async def get_user_won_products(db: db_dependency, user: user_dependency):
+    products = db.query(models.Product).filter(
+        models.Product.is_active == False,
+        models.Product.max_bid_user_id == user.get('id')
+    ).all()
+    return products

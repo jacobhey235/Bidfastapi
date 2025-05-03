@@ -15,27 +15,19 @@ const Account = () => {
     won: true
   });
   const [showAddProduct, setShowAddProduct] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
-    const userId = localStorage.getItem('user_id');
-    setCurrentUserId(parseInt(userId));
-    
     const fetchData = async () => {
       try {
         const [favs, products, won] = await Promise.all([
           api.get('/users/me/favorites'),
           api.get('/users/me/products'),
-          api.get('/products/').then(res => 
-            res.data.filter(p => 
-              !p.is_active && p.max_bid_user_id === parseInt(userId)
-            )
-          )
+          api.get('/users/me/won')  // Используем новый эндпоинт
         ]);
         
         setFavorites(favs.data);
         setMyProducts(products.data);
-        setWonProducts(won);
+        setWonProducts(won.data);  // Устанавливаем выигранные товары
       } catch (err) {
         console.error('Error fetching account data:', err);
       } finally {
@@ -46,29 +38,28 @@ const Account = () => {
     fetchData();
   }, []);
 
+  const handleCloseAuction = async (productId) => {
+    try {
+      await api.patch(`/products/${productId}/close`);
+      // После закрытия торгов обновляем все списки
+      const [favs, products, won] = await Promise.all([
+        api.get('/users/me/favorites'),
+        api.get('/users/me/products'),
+        api.get('/users/me/won')
+      ]);
+      setFavorites(favs.data);
+      setMyProducts(products.data);
+      setWonProducts(won.data);
+    } catch (err) {
+      console.error('Error closing auction:', err);
+    }
+  };
+
   const handleAddProductSuccess = () => {
     setShowAddProduct(false);
     api.get('/users/me/products').then(response => {
       setMyProducts(response.data);
     });
-  };
-
-  const handleCloseAuction = async (productId) => {
-    try {
-      await api.patch(`/products/${productId}/close`);
-      const [products, won] = await Promise.all([
-        api.get('/users/me/products'),
-        api.get('/products/').then(res => 
-          res.data.filter(p => 
-            !p.is_active && p.max_bid_user_id === currentUserId
-          )
-        )
-      ]);
-      setMyProducts(products.data);
-      setWonProducts(won);
-    } catch (err) {
-      console.error('Error closing auction:', err);
-    }
   };
 
   return (
