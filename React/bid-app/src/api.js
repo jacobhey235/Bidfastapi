@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://bidfastapi-backend.onrender.com:8000',
+  baseURL: 'https://bidfastapi-backend.onrender.com',
   timeout: 5000,
 });
 
