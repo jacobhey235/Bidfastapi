@@ -15,7 +15,7 @@ app = FastAPI()
 app.include_router(auth.router)
 
 origins = [
-    'http://localhost:3000',
+    'https://bidfastapi-frontend.onrender.com/',
 ]
 
 app.add_middleware(
