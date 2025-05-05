@@ -16,6 +16,17 @@ const Account = () => {
   });
   const [showAddProduct, setShowAddProduct] = useState(false);
 
+  const checkAndUpdateAuctionStatus = (products) => {
+    const now = new Date();
+    return products.map(product => {
+      const bidDate = new Date(product.bid_date);
+      if (bidDate < now && product.is_active) {
+        return { ...product, is_active: false };
+      }
+      return product;
+    });
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -24,10 +35,9 @@ const Account = () => {
           api.get('/users/me/products'),
           api.get('/users/me/won')
         ]);
-        
-        setFavorites(favs.data);
-        setMyProducts(products.data);
-        setWonProducts(won.data);
+        setFavorites(checkAndUpdateAuctionStatus(favs.data));
+        setMyProducts(checkAndUpdateAuctionStatus(products.data));
+        setWonProducts(checkAndUpdateAuctionStatus(won.data));
       } catch (err) {
         console.error('Error fetching account data:', err);
       } finally {
@@ -36,6 +46,8 @@ const Account = () => {
     };
 
     fetchData();
+    const interval = setInterval(fetchData, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleCloseAuction = async (productId) => {
@@ -46,9 +58,9 @@ const Account = () => {
         api.get('/users/me/products'),
         api.get('/users/me/won')
       ]);
-      setFavorites(favs.data);
-      setMyProducts(products.data);
-      setWonProducts(won.data);
+      setFavorites(checkAndUpdateAuctionStatus(favs.data));
+      setMyProducts(checkAndUpdateAuctionStatus(products.data));
+      setWonProducts(checkAndUpdateAuctionStatus(won.data));
     } catch (err) {
       console.error('Error closing auction:', err);
     }

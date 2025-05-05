@@ -221,7 +221,7 @@ async def get_user_favorites(
     ).filter(models.favorites.c.user_id == user.get('id')).all()
     return products
 
-@app.get("/users/me/products", response_model=List[ProductModel])
+@app.get("/users/me/products")
 async def get_user_products(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
@@ -229,6 +229,12 @@ async def get_user_products(
     products = db.query(models.Product).filter(
         models.Product.owner_id == user.get('id')
     ).all()
+    
+    for product in products:
+        if product.bid_date < datetime.now() and product.is_active:
+            product.is_active = False
+            db.commit()
+    
     return products
 
 @app.get("/products/{product_id}/favorite-status")
