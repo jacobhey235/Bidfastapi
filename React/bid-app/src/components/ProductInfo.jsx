@@ -211,7 +211,9 @@ const ProductInfo = () => {
   const handleDeleteConfirm = async () => {
     try {
       await api.delete(`/products/${id}`);
-      navigate('/account/products');
+      // Перенаправляем на предыдущую страницу или на главную
+      const from = location.state?.from || '/';
+      navigate(from);
     } catch (err) {
       console.error('Error deleting product:', err);
       setEditError(err.response?.data?.detail || 'Ошибка при удалении товара');
