@@ -49,12 +49,12 @@ class ProductModel(ProductBase):
 
     @validator('images', pre=True)
     def parse_images(cls, v):
-        if isinstance(v, str):  # Если из БД пришла строка
+        if isinstance(v, str):
             try:
                 return json.loads(v) if v else []
             except json.JSONDecodeError:
                 return []
-        return v  # Если уже список (например, при создании)
+        return v
 
     class Config:
         from_attributes = True
@@ -89,7 +89,7 @@ async def create_product(
             raise HTTPException(400, detail="Invalid image type")
         
         contents = await file.read()
-        if len(contents) > 2 * 1024 * 1024:  # 2MB limit
+        if len(contents) > 2 * 1024 * 1024:
             raise HTTPException(400, detail="Image too large")
         
         base64_image = base64.b64encode(contents).decode('utf-8')
@@ -275,3 +275,71 @@ async def get_user_won_products(
         models.Product.max_bid_user_id == user.get('id')
     ).all()
     return products
+
+@app.put("/products/{product_id}", response_model=ProductModel)
+async def update_product(
+    product_id: int,
+    files: Optional[List[UploadFile]] = File(None),
+    title: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    bid_date: Optional[str] = Form(None),
+    cur_bid: Optional[float] = Form(None),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    if product.owner_id != user.get('id'):
+        raise HTTPException(status_code=403, detail="Товар не принадлежит вам")
+    if not product.is_active:
+        raise HTTPException(status_code=400, detail="Торги по товару уже закрыты")
+
+    image_base64_list = []
+    if files:
+        for file in files:
+            if file.content_type not in ['image/jpeg', 'image/png']:
+                raise HTTPException(400, detail="Invalid image type")
+            
+            contents = await file.read()
+            if len(contents) > 2 * 1024 * 1024:
+                raise HTTPException(400, detail="Image too large")
+            
+            base64_image = base64.b64encode(contents).decode('utf-8')
+            image_base64_list.append(base64_image)
+        product.images = image_base64_list
+
+    if title is not None:
+        product.title = title
+    if category is not None:
+        product.category = category
+    if description is not None:
+        product.description = description
+    if bid_date is not None:
+        product.bid_date = datetime.fromisoformat(bid_date)
+    if cur_bid is not None:
+        product.cur_bid = cur_bid
+    
+    db.commit()
+    db.refresh(product)
+    return product
+
+@app.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if product.owner_id != user.get('id'):
+        raise HTTPException(status_code=403, detail="Not your product")
+
+    db.execute(models.favorites.delete().where(
+        models.favorites.c.product_id == product_id
+    ))
+    
+    db.delete(product)
+    db.commit()

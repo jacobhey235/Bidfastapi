@@ -17,19 +17,19 @@ class JSONList(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
-        if isinstance(value, str):  # Если вдруг передали строку
+        if isinstance(value, str):
             return value
-        return json.dumps(value)  # Список -> JSON-строка
+        return json.dumps(value)
 
     def process_result_value(self, value, dialect):
         if value is None:
             return []
-        if isinstance(value, list):  # Если уже список (например, из кэша)
+        if isinstance(value, list):
             return value
         try:
-            return json.loads(value)  # JSON-строка -> список
+            return json.loads(value)
         except (json.JSONDecodeError, TypeError):
-            return []  # Если не JSON, возвращаем пустой список
+            return []
 
 class Product(Base):
     __tablename__ = 'products'

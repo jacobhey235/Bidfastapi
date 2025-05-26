@@ -48,7 +48,6 @@ db_dependency = Annotated[Session, Depends(get_db)]
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
     try:
-        # Проверка существующего пользователя
         existing_user = db.query(User).filter(User.username == create_user_request.username).first()
         if existing_user:
             raise HTTPException(
@@ -56,7 +55,6 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
                 detail="Username already exists"
             )
 
-        # Создание нового пользователя
         new_user = User(
             username=create_user_request.username,
             hashed_password=bcrypt_context.hash(create_user_request.password),
@@ -68,7 +66,7 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
 
         return {
             "status": "success",
-            "message": "User registered successfully",
+            "message": "Пользователь успешно зарегистрировался",
             "user_id": new_user.id
         }
     except Exception as e:
@@ -111,11 +109,11 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
         user_id: int = payload.get('id')
         if username is None or user_id is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                detail='Could not validate user')
+                                detail='Невозможно проверить пользователя')
         return {'username': username, 'id': user_id}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail='Could not validate user')
+                            detail='Невозможно проверить пользователя')
 
 
 def authenticate_user(username: str, password: str, db):

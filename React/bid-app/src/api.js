@@ -35,6 +35,8 @@ const getFavorites = () => api.get('/users/me/favorites');
 const getUserProducts = () => api.get('/users/me/products');
 const closeAuction = (productId) => api.patch(`/products/${productId}/close`);
 const getWonProducts = () => api.get('/users/me/won');
+const updateProduct = (productId, data) => api.put(`/products/${productId}`, data);
+const deleteProduct = (productId) => api.delete(`/products/${productId}`);
 
 export {
   checkFavoriteStatus,
@@ -43,7 +45,9 @@ export {
   getFavorites,
   getUserProducts,
   closeAuction,
-  getWonProducts
+  getWonProducts,
+  updateProduct,
+  deleteProduct
 };
 
 export default api;
