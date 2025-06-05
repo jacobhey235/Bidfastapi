@@ -72,6 +72,11 @@ def get_db():
     finally:
         db.close()
 
+
+@app.get("/")
+def index():
+    return {"detail": "The backend is working! Please go to 'https://bidfastapi-frontend.onrender.com' for frontend"}
+
 @app.post("/products/", response_model=ProductModel)
 async def create_product(
     files: List[UploadFile] = File(...),
@@ -343,3 +348,4 @@ async def delete_product(
     
     db.delete(product)
     db.commit()
+

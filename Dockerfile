@@ -1,32 +1,27 @@
 # Stage 1 — сборка React
-FROM node:18 AS frontend
+FROM node:18-alpine AS frontend
 
 WORKDIR /app
 COPY React/bid-app/package*.json ./
-RUN npm install
+RUN npm ci --silent
 COPY React/bid-app ./
 RUN npm run build
 
-# Stage 2 — сборка Python backend
-FROM python:3.10.3-slim AS backend
+# Stage 2 — финальный образ
+FROM python:3.10-slim
 
 WORKDIR /app
+
+# Установка зависимостей
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir uvicorn
 
+# Копирование бэкенда
 COPY FastAPI ./FastAPI
-COPY .env .
 
-# Копируем build React в FastAPI/static
+# Копирование статики фронтенда
 COPY --from=frontend /app/build ./FastAPI/static
-
-# Final stage — запуск
-FROM python:3.10.3-slim
-
-WORKDIR /app
-COPY --from=backend /app /app
-
-RUN pip install uvicorn
 
 EXPOSE 8000
 CMD ["uvicorn", "FastAPI.main:app", "--host", "0.0.0.0", "--port", "8000"]
